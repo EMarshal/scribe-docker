@@ -1,9 +1,15 @@
 name: Docker Build
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
+    inputs:
+      ref:
+        description: 'The version of the release from https://git.sr.ht/~edwardloveall/scribe/refs'
+        required: true
+        type: string
+      sha:
+        description: 'The hash of the release from https://git.sr.ht/~edwardloveall/scribe/refs'
+        required: true
+        type: string
 
 jobs:
   docker-build:
@@ -11,22 +17,18 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Clone
-        run: git clone --depth=1 https://git.sr.ht/~edwardloveall/scribe
-#      - name: Parse Caddy version
-#        id: version
-#        run: echo "version=$(grep -Eo 'caddy:[0-9]+\.[0-9]+\.[0-9]+$' Dockerfile | cut -d ':' -f2)" | tee -a $GITHUB_OUTPUT
-#      - name: Generate Docker metadata with Caddy version
-#        id: meta
-#        uses: docker/metadata-action@v5
-#        with:
-#          images: docker.io/emarshal/caddy-custom
-#          tags: |
-#            type=semver,pattern={{version}},value=v${{ steps.version.outputs.version }}
-#            type=semver,pattern={{major}}.{{minor}},value=v${{ steps.version.outputs.version }}
-#            type=semver,pattern={{major}},value=v${{ steps.version.outputs.version }}
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Download
+        run: |
+          wget https://git.sr.ht/~edwardloveall/scribe/archive/${{ inputs.sha }}.tar.gz
+          tar -xzf ${{ inputs.sha }}.tar.gz
+      - name: Generate Docker metadata with Scribe version
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: docker.io/emarshal/scribe
+          tags: |
+            type=raw,value=${{ inputs.ref }}
+            type=raw,value=latest
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
       - name: Login to Docker Hub
@@ -37,12 +39,11 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          #annotations: ${{ steps.meta.outputs.annotations }}
-          context: .
+          annotations: ${{ steps.meta.outputs.annotations }}
+          context: scribe-${{ inputs.sha }}
           no-cache: true
-          #labels: ${{ steps.meta.outputs.labels }}
+          labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
           provenance: mode=min
-          #push: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          #tags: ${{ steps.meta.outputs.tags }}
-          push: false
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
