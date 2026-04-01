@@ -26,7 +26,7 @@ jobs:
           tar -xzf ${{ inputs.sha }}.tar.gz
       - name: Generate Docker metadata with Scribe version
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: docker.io/emarshal/scribe
           tags: |
